@@ -49,26 +49,30 @@ def home():
 def download():
     url = request.form['url']
     try:
+        @app.route('/download', methods=['POST'])
+def download():
+    url = request.form['url']
+    try:
         ydl_opts = {
-            'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-            'noplaylist': True,
             'quiet': True,
+            'no_warnings': True,
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'simulate': True,  # ¡Solo extrae info, no descarga!
+            'get_url': True,   # Obtiene la URL directa del video
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-        
-        def generate():
-            with open(filename, 'rb') as f:
-                yield from f
-            time.sleep(1)
-            os.remove(filename)
+            info = ydl.extract_info(url, download=False)
+            video_url = info.get('url') or info.get('formats')[0]['url']  # URL directa
 
-        return app.response_class(generate(), mimetype='video/mp4', headers={
-            'Content-Disposition': f'attachment; filename="{os.path.basename(filename)}"'
-        })
+        if not video_url:
+            raise Exception("No se encontró URL directa")
+
+        # Redirige directamente al video (el navegador lo descarga)
+        return redirect(video_url)
+
     except Exception as e:
         return f"¡Ups! Error: {str(e)}<br><a href='/'>Volver</a>", 400
-
+        
 if __name__ == '__main__':
+
     app.run(debug=True, host='0.0.0.0', port=5000)
